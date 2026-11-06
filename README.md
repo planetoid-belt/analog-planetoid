@@ -5,6 +5,7 @@
 
 ## Doc links
 - [Godot workflow](docs/godot_workflow.md) - Start here if you are unfamiliar with godot! 
+- [Main scene composition](docs/scene_composition.md)
 - [procedural generation](docs/procedural_generation.md) - notes & sources for procedural generation. 
 - [volume rendering](docs/volume_rendering.md) - notes & sources for volume rendering.
 
