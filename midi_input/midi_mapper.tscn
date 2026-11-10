@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://cj33h1axaovch"]
+
+[ext_resource type="Script" uid="uid://cxoe27jtb1fie" path="res://midi_input/midi_mapper.gd" id="1_aant8"]
+[ext_resource type="PackedScene" uid="uid://cuyd1qv0pn26e" path="res://addons/midi/MidiPlayer.tscn" id="2_kvovb"]
+
+[node name="MidiMapper" type="Node3D" unique_id=1110620391]
+script = ExtResource("1_aant8")
+
+[node name="MidiPlayer" parent="." unique_id=1753062059 instance=ExtResource("2_kvovb")]
+load_all_voices_from_soundfont = false
+soundfont = "res://assets/audio/Jnsgm2.sf2"

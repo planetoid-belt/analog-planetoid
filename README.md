@@ -26,3 +26,12 @@ give credits to:
 - VIC studio, 
 - authors of papers we implement,
 - authors of any plugins or tools we end up using (incl. godot)
+- [Godot MIDI Player for Godot Engine 4.x by Yui Kinomoto](https://github.com/arlez80/godot-midi-player-g4)
+
+
+### MIDI related controls and documentation
+
+- [Godot documentation: InputEventMidi](https://docs.godotengine.org/en/stable/classes/class_inputeventmidi.html)
+- [Plugin: Godot MIDI Player for Godot Engine 4](https://godotengine.org/asset-library/asset/1667)
+- [Soundfont used in project rn: Jnsgm2.sf2](https://github.com/wrightflyer/SF2_SoundFonts/blob/master/Jnsgm2.sf2),
+*sourced from [Reddit: What’s the best all-around soundfont?](https://www.reddit.com/r/midi/comments/pmh94q/whats_the_best_allaround_soundfont/)*
