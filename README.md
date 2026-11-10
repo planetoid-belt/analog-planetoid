@@ -26,6 +26,7 @@ give credits to:
 - VIC studio, 
 - authors of papers we implement,
 - authors of any plugins or tools we end up using (incl. godot)
+- [Godot MIDI Player for Godot Engine 4.x by Yui Kinomoto](https://github.com/arlez80/godot-midi-player-g4)
 
 
 ### MIDI related controls and documentation
