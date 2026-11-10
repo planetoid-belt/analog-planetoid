@@ -6,31 +6,52 @@
 class_name HexaSphere
 extends ArrayMesh
 
+const REBUILD_DEBOUNCE_SECONDS := 0.3
+
 ## Number of times the box will be smoothed.
 @export_range(0, 32, 1, "prefer_slider") var subdivisions = 0:
 	set(value):
 		subdivisions = clampi(value, 0, 32)
-		_init_mesh()
+		_queue_mesh_rebuild()
 
 ## How much the mesh will be smoothed by.
 @export_range(0.0, 1.0, 0.01) var smoothness = 0.0:
 	set(value):
 		smoothness = clampf(value, 0.0, 1.0)
-		_init_mesh()
+		_queue_mesh_rebuild()
 
 
 ## Uniformally changes the box's size in meter units.
 @export var uniform_size: float = 1.0:
 	set(value):
 		uniform_size = maxf(value, 0.0)
-		_init_mesh()
+		_queue_mesh_rebuild()
 
 
 # surface tool! we will use this to modify the mesh.
 var st := SurfaceTool.new()
+var _rebuild_generation := 0
 
 func _init() -> void:
 	_init_mesh()
+
+
+func _queue_mesh_rebuild() -> void:
+	_rebuild_generation += 1
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	if scene_tree == null:
+		_init_mesh()
+		return
+
+	scene_tree.create_timer(REBUILD_DEBOUNCE_SECONDS).timeout.connect(
+		_rebuild_if_current.bind(_rebuild_generation),
+		CONNECT_ONE_SHOT
+	)
+
+
+func _rebuild_if_current(generation: int) -> void:
+	if generation == _rebuild_generation:
+		_init_mesh()
 
 
 func _set_subdivision(value: int, mesh: BoxMesh) -> void:
