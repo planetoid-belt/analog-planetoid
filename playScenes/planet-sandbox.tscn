@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://bhy3kl4slfcnw"]
+
+[ext_resource type="Script" uid="uid://grf4ldb5fukn" path="res://src/hexasphere.gd" id="1_6o1xg"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_m664p"]
+size = Vector3(2, 2, 2)
+script = ExtResource("1_6o1xg")
+uniform_size = 2.0
+metadata/_custom_type_script = "uid://grf4ldb5fukn"
+
+[node name="PlanetSandbox" type="Node3D" unique_id=750419272]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1652973808]
+mesh = SubResource("BoxMesh_m664p")
