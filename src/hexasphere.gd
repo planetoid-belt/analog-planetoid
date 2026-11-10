@@ -67,5 +67,6 @@ func _init_mesh() -> void:
 	st.clear()
 	st.create_from_arrays(arrays, Mesh.PRIMITIVE_TRIANGLES)
 	st.generate_normals()
+	st.generate_tangents()
 	clear_surfaces()
 	st.commit(self)
