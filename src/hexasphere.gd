@@ -12,6 +12,7 @@ extends ArrayMesh
 const REBUILD_DEBOUNCE_SECONDS := 0.3
 const CHUNK_NAMES := ["chunk_right", "chunk_left", "chunk_top", "chunk_bottom", "chunk_back", "chunk_front"]
 
+#region exports
 @export_category("Mesh Settings")
 ## Number of times the box will be smoothed.
 @export_range(0, 32, 1) var subdivisions = 4:
@@ -19,7 +20,7 @@ const CHUNK_NAMES := ["chunk_right", "chunk_left", "chunk_top", "chunk_bottom", 
 		subdivisions = clampi(value, 0, 32)
 		_queue_mesh_rebuild()
 ## How much the mesh will be smoothed by.
-@export_range(0.0, 1.0, 0.01) var smoothness = 1:
+@export_range(0.0, 1.0, 0.01) var smoothness = 1.0:
 	set(value):
 		smoothness = clampf(value, 0.0, 1.0)
 		_queue_mesh_rebuild()
@@ -50,6 +51,7 @@ const CHUNK_NAMES := ["chunk_right", "chunk_left", "chunk_top", "chunk_bottom", 
 	set(value):
 		debug_line_length = maxf(value, 0.005)
 		_queue_mesh_rebuild()
+#endregion
 
 var _rebuild_generation := 0
 
