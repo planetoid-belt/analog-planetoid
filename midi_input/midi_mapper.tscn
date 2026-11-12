@@ -1,11 +1,100 @@
 [gd_scene format=3 uid="uid://cj33h1axaovch"]
 
 [ext_resource type="Script" uid="uid://cxoe27jtb1fie" path="res://midi_input/midi_mapper.gd" id="1_aant8"]
-[ext_resource type="PackedScene" uid="uid://cuyd1qv0pn26e" path="res://addons/midi/MidiPlayer.tscn" id="2_kvovb"]
+[ext_resource type="PackedScene" uid="uid://c3mnhiqtxyl8n" path="res://midi_input/midi_controller.tscn" id="2_aant8"]
+[ext_resource type="PackedScene" uid="uid://xue6pwawikni" path="res://midi_input/midi_input_hub.tscn" id="3_kvovb"]
 
-[node name="MidiMapper" type="Node3D" unique_id=1110620391]
+[node name="MidiMapper" type="Node2D" unique_id=2125053809]
 script = ExtResource("1_aant8")
 
-[node name="MidiPlayer" parent="." unique_id=1753062059 instance=ExtResource("2_kvovb")]
-load_all_voices_from_soundfont = false
-soundfont = "res://assets/audio/Jnsgm2.sf2"
+[node name="UI" type="CanvasLayer" parent="." unique_id=110743425]
+
+[node name="Mapper" type="PanelContainer" parent="UI" unique_id=1254450337]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 576.0
+offset_bottom = 643.0
+
+[node name="Layout" type="VBoxContainer" parent="UI/Mapper" unique_id=1558794029]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="UI/Mapper/Layout" unique_id=452456832]
+layout_mode = 2
+text = "MIDI Controller Mapping"
+
+[node name="ProfileRow" type="HBoxContainer" parent="UI/Mapper/Layout" unique_id=1352822648]
+layout_mode = 2
+
+[node name="ResetMapButton" type="Button" parent="UI/Mapper/Layout/ProfileRow" unique_id=1758050022]
+layout_mode = 2
+text = "Reset all rows"
+
+[node name="FileRow" type="HBoxContainer" parent="UI/Mapper/Layout" unique_id=218309754]
+layout_mode = 2
+
+[node name="ImportButton" type="Button" parent="UI/Mapper/Layout/FileRow" unique_id=1460029459]
+layout_mode = 2
+text = "Import JSON"
+
+[node name="ExportButton" type="Button" parent="UI/Mapper/Layout/FileRow" unique_id=2085574706]
+layout_mode = 2
+text = "Export JSON"
+
+[node name="Instructions" type="Label" parent="UI/Mapper/Layout" unique_id=371979791]
+layout_mode = 2
+text = "Select a note, then press the MIDI key to assign."
+autowrap_mode = 2
+
+[node name="MappingScroll" type="ScrollContainer" parent="UI/Mapper/Layout" unique_id=320408946]
+custom_minimum_size = Vector2(510, 500)
+layout_mode = 2
+
+[node name="MappingRows" type="VBoxContainer" parent="UI/Mapper/Layout/MappingScroll" unique_id=2991565]
+custom_minimum_size = Vector2(490, 0)
+layout_mode = 2
+
+[node name="Controller" type="Panel" parent="UI" unique_id=981145788]
+offset_left = 610.0
+offset_top = 23.0
+offset_right = 1119.0
+offset_bottom = 635.0
+
+[node name="Layout" type="VBoxContainer" parent="UI/Controller" unique_id=317196520]
+layout_mode = 0
+offset_right = 507.0
+offset_bottom = 612.0
+
+[node name="ConnectedLabel" type="Label" parent="UI/Controller/Layout" unique_id=193924173]
+layout_mode = 2
+text = "Connected MIDI inputs:"
+autowrap_mode = 2
+
+[node name="StatusLabel" type="Label" parent="UI/Controller/Layout" unique_id=460126548]
+layout_mode = 2
+
+[node name="KeyStatusLabel" type="Label" parent="UI/Controller/Layout" unique_id=1736475838]
+layout_mode = 2
+text = "Received:"
+
+[node name="ImportDialog" type="FileDialog" parent="." unique_id=1073206788]
+oversampling_override = 1.0
+title = "Open a File"
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.json ; MIDI mapping configuration")
+
+[node name="ExportDialog" type="FileDialog" parent="." unique_id=682761576]
+oversampling_override = 1.0
+access = 2
+filters = PackedStringArray("*.json ; MIDI mapping configuration")
+
+[node name="MidiController" parent="." unique_id=148925327 instance=ExtResource("2_aant8")]
+input_hub_path = NodePath("../MidiInputHub")
+
+[node name="MidiInputHub" parent="." unique_id=581690409 instance=ExtResource("3_kvovb")]
+
+[connection signal="pressed" from="UI/Mapper/Layout/ProfileRow/ResetMapButton" to="." method="_on_reset_map_button_pressed"]
+[connection signal="pressed" from="UI/Mapper/Layout/FileRow/ImportButton" to="." method="_open_import_dialog"]
+[connection signal="pressed" from="UI/Mapper/Layout/FileRow/ExportButton" to="." method="_open_export_dialog"]
+[connection signal="file_selected" from="ImportDialog" to="." method="_import_mapping_file"]
+[connection signal="file_selected" from="ExportDialog" to="." method="_export_mapping_file"]
