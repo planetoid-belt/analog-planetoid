@@ -1,0 +1,50 @@
+[gd_scene format=3 uid="uid://cvcs03y8buwws"]
+
+[ext_resource type="Script" uid="uid://vewe821stc0u" path="res://src/midiSandbox/midi_mesh.gd" id="1_aq5ws"]
+[ext_resource type="Script" uid="uid://dud6d3vs0pwi7" path="res://src/midiSandbox/camera_3d.gd" id="1_sgkgg"]
+[ext_resource type="PackedScene" uid="uid://c3mnhiqtxyl8n" path="res://midi_input/midi_controller.tscn" id="2_n5ol4"]
+[ext_resource type="PackedScene" uid="uid://xue6pwawikni" path="res://midi_input/midi_input_hub.tscn" id="3_sgkgg"]
+[ext_resource type="Texture2D" uid="uid://cu3m5eo88xxto" path="res://assets/2d/2k_stars_milky_way.jpg" id="4_n5ol4"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_u3m7n"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_sif7b"]
+material = SubResource("StandardMaterial3D_u3m7n")
+
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_843oe"]
+panorama = ExtResource("4_n5ol4")
+energy_multiplier = 2.0
+
+[sub_resource type="Sky" id="Sky_ib2ti"]
+sky_material = SubResource("PanoramaSkyMaterial_843oe")
+
+[sub_resource type="Environment" id="Environment_vxcft"]
+background_mode = 2
+sky = SubResource("Sky_ib2ti")
+ambient_light_source = 3
+ambient_light_color = Color(1, 1, 1, 1)
+ambient_light_energy = 2.0
+reflected_light_source = 2
+
+[node name="Main" type="Node3D" unique_id=315966380]
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1225955242]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.5341024)
+current = true
+script = ExtResource("1_sgkgg")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=634107462]
+mesh = SubResource("SphereMesh_sif7b")
+script = ExtResource("1_aq5ws")
+
+[node name="MidiController" parent="." unique_id=212663071 instance=ExtResource("2_n5ol4")]
+print_midi = true
+input_hub_path = NodePath("../MidiInputHub")
+
+[node name="MidiInputHub" parent="." unique_id=581690409 instance=ExtResource("3_sgkgg")]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1418334625]
+environment = SubResource("Environment_vxcft")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1153018930]
+transform = Transform3D(0.70710677, 0, -0.70710677, 0, 1, 0, 0.70710677, 0, 0.70710677, 0, 0, 0)
