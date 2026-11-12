@@ -25,6 +25,11 @@ extends Node3D
 ## an array of mesh chunks. These are children to the ChunkManager.
 @export var mesh_chunks: Array[MeshInstance3D]
 
+## a script that will be attached to each chunk.
+## TODO: on script update, set existing chunk children
+## to hold the new script.
+@export var chunk_script: GDScript = load("res://src/chunk.gd")
+
 func _ready() -> void:
 	if hexasphere == null:
 		hexasphere = HexaSphere.new()
@@ -44,13 +49,15 @@ func _validate_mesh_chunks() -> void:
 		if chunk_instance == null:
 			chunk_instance = MeshInstance3D.new()
 			chunk_instance.name = chunk_name
+			chunk_instance.set_script(chunk_script)
 			add_child(chunk_instance)
 
-		# to make it so the mesh instances show up in editor.
-		if Engine.is_editor_hint():
-			var edited_scene_root := get_tree().edited_scene_root
-			if edited_scene_root != null:
-				chunk_instance.owner = edited_scene_root
+		if Engine.is_editor_hint() and is_inside_tree():
+			var scene_tree := get_tree()
+			if scene_tree != null:
+				var edited_scene_root := scene_tree.edited_scene_root
+				if edited_scene_root != null and edited_scene_root.is_ancestor_of(chunk_instance):
+					chunk_instance.owner = edited_scene_root
 
 		validated_chunk_holders.append(chunk_instance)
 

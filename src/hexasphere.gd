@@ -54,6 +54,7 @@ const CHUNK_NAMES := ["chunk_right", "chunk_left", "chunk_top", "chunk_bottom", 
 #endregion
 
 var _rebuild_generation := 0
+var _surface_materials: Dictionary = {}
 
 
 func _init() -> void:
@@ -62,6 +63,8 @@ func _init() -> void:
 
 ## this bad boy does aaaaaall the work
 func _init_mesh() -> void:
+	_cache_surface_materials()
+
 	## start from a box!
 	var box := BoxMesh.new()
 	box.size = Vector3.ONE * uniform_size
@@ -141,6 +144,7 @@ func _init_mesh() -> void:
 	if debug_normals or debug_vertices:
 		_add_debug_lines_surface()
 
+	_restore_surface_materials()
 	emit_changed()
 
 
@@ -185,6 +189,18 @@ func _add_debug_lines_surface() -> void:
 	var debug_surface_idx := get_surface_count() - 1
 	surface_set_name(debug_surface_idx, "debug")
 	surface_set_material(debug_surface_idx, debug_mat)
+
+
+func _cache_surface_materials() -> void:
+	for surface_index in range(get_surface_count()):
+		_surface_materials[surface_get_name(surface_index)] = surface_get_material(surface_index)
+
+
+func _restore_surface_materials() -> void:
+	for surface_index in range(get_surface_count()):
+		var surface_name := surface_get_name(surface_index)
+		if _surface_materials.has(surface_name):
+			surface_set_material(surface_index, _surface_materials[surface_name])
 
 
 ## ------------------- HELPER FUNCTIONS ------------------- ##
