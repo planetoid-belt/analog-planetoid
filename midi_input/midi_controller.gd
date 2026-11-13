@@ -1,247 +1,272 @@
 extends Node
+class_name MidiController
+
+signal raw_midi_event(event: InputEventMIDI)
+signal mapped_midi_event(event: InputEventMIDI)
+signal capture_note(event: InputEventMIDI)
+signal mapping_changed(targets: PackedInt32Array)
 
 const CONFIG_VERSION := 1
-const DEFAULT_MAPPING_PATH := "user://midi_controller_mappings.json"
 
-const NOTE_NAMES: Array[String] = [
-	"C", "C#", "D", "D#", "E", "F",
-	"F#", "G", "G#", "A", "A#", "B",
-]
+# -1 accepts events from any MIDI input device.
+@export var device_id: int = -1
 
-func _note_name(pitch: int) -> String:
-	if pitch < 0 or pitch > 127:
-		return "Disabled"
+# Leave empty to use the identity map.
+@export var mapping_path: String = ""
 
-	var octave := floori(float(pitch) / 12.0) - 1
-	return "%s%d" % [NOTE_NAMES[pitch % 12], octave]
+# Disable this in the mapper scene to prevent learned keys from playing.
+@export var play_sound := true
+@export var print_midi := false
 
+@export_node_path("Node") var input_hub_path: NodePath
 
-@export var filepath: String = DEFAULT_MAPPING_PATH
+@onready var midi_player: MidiPlayer = get_node_or_null("MidiPlayer") as MidiPlayer
 
-@onready var midi_player: MidiPlayer = $MidiPlayer
+var _input_hub: MidiInputHub
+var _pitch_targets := _identity_map()
+var _capture_mode := false
 
-var default_pitch_targets: PackedInt32Array
-var controller_profiles: Array[Dictionary] = []
-
-# Input note key -> output note, saved at note-on so note-off
-# releases the same output even if a profile changes.
+# Source note key -> target pitches queued at note-on. This preserves the
+# note-on mapping until matching note-off events arrive.
 var _active_note_targets: Dictionary = {}
 
 
 func _ready() -> void:
-	default_pitch_targets = _identity_map()
-	_load_mapping_file(filepath)
+	if not mapping_path.is_empty() and not load_mapping(mapping_path):
+		push_warning(
+			"Could not load MIDI mapping '%s'; using identity map."
+			% mapping_path
+		)
 
-	OS.open_midi_inputs()
-	print("Connected MIDI inputs: ", OS.get_connected_midi_inputs())
+	_input_hub = get_node_or_null(input_hub_path) as MidiInputHub
+	if _input_hub == null:
+		push_error(
+			"MidiController needs input_hub_path set to a MidiInputHub node."
+		)
+		return
 
-	if midi_player.bank == null:
-		push_error("MIDI player has no loaded SoundFont.")
-	else:
-		print("Loaded SoundFont presets: ", midi_player.bank.presets.size())
+	if not _input_hub.midi_event.is_connected(_on_midi_event):
+		_input_hub.midi_event.connect(_on_midi_event)
+
+	if play_sound:
+		if midi_player == null:
+			push_warning("Sound playback is enabled, but MidiPlayer is missing.")
+		elif midi_player.bank == null:
+			push_warning("MidiPlayer has no loaded SoundFont.")
+		else:
+			print("Loaded SoundFont presets: ", midi_player.bank.presets.size())
 
 
 func _exit_tree() -> void:
-	OS.close_midi_inputs()
+	if is_instance_valid(_input_hub):
+		if _input_hub.midi_event.is_connected(_on_midi_event):
+			_input_hub.midi_event.disconnect(_on_midi_event)
 
 
-func _input(event: InputEvent) -> void:
-	if not event is InputEventMIDI:
-		return
+# Mapping API
 
-	var midi_event := event as InputEventMIDI
-
-	# Ignore MIDI clock and active-sensing messages.
-	if midi_event.message == 248 or midi_event.message == 254:
-		return
-
-	var note_key := _make_note_key(midi_event)
-	var is_note_off := (
-		midi_event.message == MIDI_MESSAGE_NOTE_OFF
-		or (
-			midi_event.message == MIDI_MESSAGE_NOTE_ON
-			and midi_event.velocity == 0
-		)
-	)
-
-	if is_note_off:
-		if not _active_note_targets.has(note_key):
-			return
-
-		var target_pitch: int = _active_note_targets[note_key]
-		_active_note_targets.erase(note_key)
-
-		var note_off := _copy_event_with_pitch(midi_event, target_pitch)
-		if midi_event.message == MIDI_MESSAGE_NOTE_ON:
-			# MIDI allows velocity-zero note-on as note-off.
-			note_off.message = MIDI_MESSAGE_NOTE_OFF
-
-		midi_player.receive_raw_midi_message(note_off)
-		return
-
-	if midi_event.message == MIDI_MESSAGE_NOTE_ON:
-		var targets := _targets_for_event(midi_event)
-		var target_pitch: int = targets[midi_event.pitch]
-
-		# -1 in the mapping disables this input pitch.
-		if target_pitch < 0:
-			return
+func get_pitch_targets() -> PackedInt32Array:
+	return _pitch_targets.duplicate()
 
 
-		print(
-			"Mapped %s (%d) → %s (%d)" % [
-				_note_name(midi_event.pitch),
-				midi_event.pitch,
-				_note_name(target_pitch),
-				target_pitch,
-			]
-		)
+func set_pitch_targets(targets: PackedInt32Array) -> bool:
+	if targets.size() != 128:
+		push_warning("A MIDI mapping must contain exactly 128 values.")
+		return false
 
-		_active_note_targets[note_key] = target_pitch
-		midi_player.receive_raw_midi_message(
-			_copy_event_with_pitch(midi_event, target_pitch)
-		)
-		return
+	for target in targets:
+		if target < -1 or target > 127:
+			push_warning("MIDI mapping values must be between -1 and 127.")
+			return false
 
-	# Forward pitch bend, sustain, modulation, program changes, and other
-	# MIDI messages unchanged.
-	midi_player.receive_raw_midi_message(midi_event)
+	_pitch_targets = targets.duplicate()
+	mapping_changed.emit(get_pitch_targets())
+	return true
 
 
-func _load_mapping_file(path: String) -> void:
-	if path.is_empty():
-		push_warning("MidiController filepath is empty; using the identity map.")
-		return
+func set_pitch_mapping(source_pitch: int, target_pitch: int) -> bool:
+	if source_pitch < 0 or source_pitch > 127:
+		return false
+	if target_pitch < -1 or target_pitch > 127:
+		return false
 
+	_pitch_targets[source_pitch] = target_pitch
+	mapping_changed.emit(get_pitch_targets())
+	return true
+
+
+func reset_mapping() -> void:
+	_pitch_targets = _identity_map()
+	mapping_changed.emit(get_pitch_targets())
+
+
+# Capture API
+
+func begin_capture() -> void:
+	_capture_mode = true
+
+
+func end_capture() -> void:
+	_capture_mode = false
+
+
+# Mapping file API
+
+func load_mapping(path: String) -> bool:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		push_warning(
-			"Could not open MIDI mapping file '%s'; using the identity map."
-			% path
-		)
-		return
+		return false
 
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	if not parsed is Dictionary:
-		push_warning(
-			"MIDI mapping file '%s' is not a JSON object; using identity map."
-			% path
-		)
-		return
+		return false
+	if parsed.get("version", null) != CONFIG_VERSION:
+		return false
 
-	if int(parsed.get("version", -1)) != CONFIG_VERSION:
-		push_warning(
-			"Unsupported MIDI mapping version in '%s'; using identity map."
-			% path
-		)
-		return
+	var raw_targets: Variant = parsed.get("pitch_targets", null)
+	if not raw_targets is Array:
+		return false
+	if raw_targets.size() != 128:
+		return false
 
-	# Parse into temporary values first so a bad file does not leave the
-	# controller with a partially loaded configuration.
-	var loaded_default := _normalize_map(
-		parsed.get("default_pitch_targets", [])
-	)
-	var loaded_profiles: Array[Dictionary] = []
-
-	var raw_profiles: Variant = parsed.get("profiles", [])
-	if raw_profiles is Array:
-		for raw_profile in raw_profiles:
-			if not raw_profile is Dictionary:
-				continue
-
-			var channel := int(raw_profile.get("channel", -1))
-			if channel < -1 or channel > 15:
-				continue
-
-			loaded_profiles.append({
-				"name": str(raw_profile.get("name", "MIDI Controller")),
-				"device_id": int(raw_profile.get("device_id", -1)),
-				"channel": channel,
-				"pitch_targets": _normalize_map(
-					raw_profile.get("pitch_targets", [])
-				),
-			})
-
-	default_pitch_targets = loaded_default
-	controller_profiles = loaded_profiles
-
-	print(
-		"Loaded MIDI mapping '%s' with %d controller profile(s)."
-		% [path, controller_profiles.size()]
-	)
-
-
-func _targets_for_event(event: InputEventMIDI) -> PackedInt32Array:
-	var profile_index := _find_profile_for_event(event)
-	if profile_index < 0:
-		return _normalize_map(default_pitch_targets)
-
-	var profile := controller_profiles[profile_index]
-	return _normalize_map(profile.get("pitch_targets", []))
-
-
-func _find_profile_for_event(event: InputEventMIDI) -> int:
-	var best_index := -1
-	var best_specificity := -1
-
-	for index in range(controller_profiles.size()):
-		var profile := controller_profiles[index]
-		var device_id := int(profile.get("device_id", -1))
-		var channel := int(profile.get("channel", -1))
-
-		if device_id != -1 and device_id != event.device:
-			continue
-		if channel != -1 and channel != event.channel:
-			continue
-
-		var specificity := 0
-		if device_id != -1:
-			specificity += 1
-		if channel != -1:
-			specificity += 1
-
-		if specificity > best_specificity:
-			best_index = index
-			best_specificity = specificity
-
-	return best_index
-
-
-func _identity_map() -> PackedInt32Array:
-	var result := PackedInt32Array()
-	result.resize(128)
+	var loaded_targets := PackedInt32Array()
+	loaded_targets.resize(128)
 
 	for pitch in range(128):
-		result[pitch] = pitch
+		var value: Variant = raw_targets[pitch]
+		if typeof(value) != TYPE_INT and typeof(value) != TYPE_FLOAT:
+			return false
 
-	return result
+		var target := int(value)
+		if target < -1 or target > 127:
+			return false
+
+		loaded_targets[pitch] = target
+
+	_pitch_targets = loaded_targets
+	mapping_changed.emit(get_pitch_targets())
+	return true
 
 
-func _normalize_map(value: Variant) -> PackedInt32Array:
-	var result := _identity_map()
+func save_mapping(path: String = "") -> bool:
+	var destination := path
+	if destination.is_empty():
+		destination = mapping_path
+	if destination.is_empty():
+		return false
 
-	if value is Array:
-		for pitch in range(mini(value.size(), 128)):
-			var target := int(value[pitch])
-			if target >= -1 and target <= 127:
-				result[pitch] = target
-	elif value is PackedInt32Array:
-		for pitch in range(mini(value.size(), 128)):
-			var target: int = value[pitch]
-			if target >= -1 and target <= 127:
-				result[pitch] = target
+	var document := {
+		"version": CONFIG_VERSION,
+		"pitch_targets": Array(_pitch_targets),
+	}
 
-	return result
+	var file := FileAccess.open(destination, FileAccess.WRITE)
+	if file == null:
+		push_error("Could not write MIDI mapping: %s" % destination)
+		return false
+
+	file.store_string(JSON.stringify(document, "\t"))
+	return true
+
+
+# MIDI input pipeline
+
+func _on_midi_event(event: InputEventMIDI) -> void:
+	if device_id != -1 and event.device != device_id:
+		return
+
+	if _capture_mode:
+		raw_midi_event.emit(event)
+		if _is_note_on(event):
+			capture_note.emit(event)
+		return
+
+	raw_midi_event.emit(event)
+
+	if _is_note_off(event):
+		_forward_note_off(event)
+		return
+
+	if _is_note_on(event):
+		_forward_note_on(event)
+		return
+
+	_forward_mapped_event(event.duplicate() as InputEventMIDI)
+
+
+func _forward_note_on(event: InputEventMIDI) -> void:
+	var target_pitch := _pitch_targets[event.pitch]
+	
+	if print_midi:
+		print(InputEventMIDI)
+
+	# -1 disables this source pitch.
+	if target_pitch < 0:
+		return
+
+	var note_key := _make_note_key(event)
+	if not _active_note_targets.has(note_key):
+		_active_note_targets[note_key] = []
+
+	var queued_targets: Array = _active_note_targets[note_key]
+	queued_targets.append(target_pitch)
+
+	var note_on := event.duplicate() as InputEventMIDI
+	note_on.pitch = target_pitch
+	_forward_mapped_event(note_on)
+
+
+func _forward_note_off(event: InputEventMIDI) -> void:
+	var note_key := _make_note_key(event)
+	if not _active_note_targets.has(note_key):
+		return
+
+	var queued_targets: Array = _active_note_targets[note_key]
+	var target_pitch := int(queued_targets.pop_front())
+
+	if queued_targets.is_empty():
+		_active_note_targets.erase(note_key)
+	else:
+		_active_note_targets[note_key] = queued_targets
+
+	var note_off := event.duplicate() as InputEventMIDI
+	note_off.pitch = target_pitch
+	note_off.message = MIDI_MESSAGE_NOTE_OFF
+	_forward_mapped_event(note_off)
+
+
+func _forward_mapped_event(event: InputEventMIDI) -> void:
+	mapped_midi_event.emit(event)
+
+	if play_sound and midi_player != null:
+		midi_player.receive_raw_midi_message(event)
+
+
+# Helpers
+
+func _is_note_on(event: InputEventMIDI) -> bool:
+	return event.message == MIDI_MESSAGE_NOTE_ON and event.velocity > 0
+
+
+func _is_note_off(event: InputEventMIDI) -> bool:
+	return (
+		event.message == MIDI_MESSAGE_NOTE_OFF
+		or (
+			event.message == MIDI_MESSAGE_NOTE_ON
+			and event.velocity == 0
+		)
+	)
 
 
 func _make_note_key(event: InputEventMIDI) -> String:
 	return "%d:%d:%d" % [event.device, event.channel, event.pitch]
 
 
-func _copy_event_with_pitch(
-	source_event: InputEventMIDI,
-	target_pitch: int
-) -> InputEventMIDI:
-	var copied_event := source_event.duplicate() as InputEventMIDI
-	copied_event.pitch = target_pitch
-	return copied_event
+func _identity_map() -> PackedInt32Array:
+	var targets := PackedInt32Array()
+	targets.resize(128)
+
+	for pitch in range(128):
+		targets[pitch] = pitch
+
+	return targets

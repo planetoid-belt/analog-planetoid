@@ -3,9 +3,9 @@
 [ext_resource type="Script" uid="uid://tue5y0hnqw67" path="res://midi_input/midi_controller.gd" id="1_ohw4x"]
 [ext_resource type="PackedScene" uid="uid://cuyd1qv0pn26e" path="res://addons/midi/MidiPlayer.tscn" id="2_7lpit"]
 
-[node name="MidiController" type="Node3D" unique_id=148925327]
+[node name="MidiController" type="Node" unique_id=212663071]
 script = ExtResource("1_ohw4x")
-filepath = "res://row 3 - c major.json"
+mapping_path = "res://midi_input/alesis - c-major.json"
 
 [node name="MidiPlayer" parent="." unique_id=1124145568 instance=ExtResource("2_7lpit")]
 load_all_voices_from_soundfont = false
