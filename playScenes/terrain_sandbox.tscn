@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://cfq5tmrga6gpj"]
+
+[ext_resource type="PackedScene" uid="uid://cv5kjnx2atyiv" path="res://packedScenes/terrain.tscn" id="1_25l4l"]
+[ext_resource type="Script" uid="uid://dfpl5y14kpct0" path="res://src/planet.gd" id="1_f8d4c"]
+
+[node name="TerrainSandbox" type="Node3D" unique_id=1451487231]
+
+[node name="Planet" type="Node3D" parent="." unique_id=345910888]
+script = ExtResource("1_f8d4c")
+rotation_speed = 0.5
+
+[node name="Terrain" parent="Planet" unique_id=1000624437 instance=ExtResource("1_25l4l")]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=70309678]
+transform = Transform3D(1, 0, 0, 0, 0.5019895, 0.8648737, 0, -0.8648737, 0.5019895, 0, 52.693604, -66.12277)
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=812934980]
+transform = Transform3D(-4.371139e-08, -0.31067643, 0.95051575, 0, 0.95051575, 0.31067643, -1, 1.3580098e-08, -4.154836e-08, 3, 0.468, 1.308)
