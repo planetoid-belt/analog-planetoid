@@ -13,6 +13,9 @@ class_name Chunk
 		# mesh is not allowed to be a null value if its gonna get assigned
 		if mesh != null:
 			mesh_instance.mesh = value
+			if collision_shape != null:
+				collision_shape.shape = value.create_convex_shape()
+
 
 @export var collision_shape: CollisionShape3D:
 	set(value):
@@ -44,6 +47,7 @@ func _ready() -> void:
 	if not has_node("ChunkCollision"):
 		collision_shape = CollisionShape3D.new()
 		collision_shape.name = "ChunkCollision"
+		collision_shape.shape = mesh_instance.mesh.create_convex_shape() if mesh_instance.mesh != null else null
 		add_child(collision_shape)
 
 		if Engine.is_editor_hint() and is_inside_tree():
