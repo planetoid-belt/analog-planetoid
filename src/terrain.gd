@@ -3,6 +3,11 @@ extends Node3D
 
 @export var chunk_manager: ChunkManager
 
+## Angular size of the sculpting brush, in degrees
+@export var brush_radius_deg: float = 15.0
+## How much one press raises/lowers the terrain
+@export var brush_strength: float = 0.05
+
 var _arrays: Array = []                      # mesh arrays per chunk
 var _dirs: Array[PackedVector3Array] = []    # vertex directions
 var _heights: Array[PackedFloat32Array] = [] # vertex heights
@@ -52,11 +57,6 @@ func _capture_chunks() -> void:
 
 	_radius = _arrays[0][Mesh.ARRAY_VERTEX][0].length()
 
-	# TEST 
-	var h := _heights[0]
-	h.fill(0.1)
-	_heights[0] = h
-	_rebuild_chunk(0)
 
 ## Rebuilds chunk `c`'s mesh from its directions & heights
 ## Only vertex positions change, everything else in the mesh arrays is reused
@@ -77,3 +77,42 @@ func _rebuild_chunk(c: int) -> void:
 	mesh.clear_surfaces()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	mesh.surface_set_material(0, material)
+
+## Raises (amount > 0) or lowers (amount < 0) terrain 
+## within radius_deg of local_dir
+func deform(local_dir: Vector3, radius_deg: float, amount: float) -> void:
+	# a vertex is inside the brush if the angle to local_dir is small enough,
+	# i.e. if the dot product is bigger than cos(radius)
+	var min_dot := cos(deg_to_rad(radius_deg))
+
+	for c in _dirs.size():
+		var dirs := _dirs[c]
+		var heights := _heights[c]
+		var changed := false
+
+		for i in dirs.size():
+			if dirs[i].dot(local_dir) > min_dot:
+				heights[i] += amount
+				changed = true
+
+		# only rebuild chunks we actually touched
+		if changed:
+			_heights[c] = heights
+			_rebuild_chunk(c)
+
+
+## Temp keyboard inputs for sculpting
+## Up = raise, Down = lower, where the camera looks
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_UP or event.keycode == KEY_DOWN:
+			var cam := get_viewport().get_camera_3d()
+			var local_dir := chunk_manager.to_local(cam.global_position).normalized()
+			var amount := brush_strength if event.keycode == KEY_UP else -brush_strength
+			deform(local_dir, brush_radius_deg, amount)
+			
+			
+			
+			
+			
+			
