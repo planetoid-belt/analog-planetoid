@@ -9,7 +9,7 @@ A quadsphere is useful because it suffers far less from edge-clustering at the t
 Each surface of the quadsphere can be split up into 6 separate sets of `{MeshInstance3D, CollisionShape3D}`. An advantage of chunks is that we can modify individual parts of the mesh without needing to rebuild it. 
 
 > [!TIP]
-> modify individual chunk meshes via `chunk.gd`. Modify the entire hexapshere via `chunk_manager.gd`
+> modify individual chunk meshes via `chunk.gd`. Modify the entire hexapshere via `chunk_manager.gd`. I recommend using the [SurfaceTool](surfacetool.md) for mesh modifications[godot docs tutorial](https://docs.godotengine.org/en/latest/tutorials/3d/procedural_geometry/surfacetool.html). 
 
 ## Related
 - [SurfaceTool](surfacetool.md)
