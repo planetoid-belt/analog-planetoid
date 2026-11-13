@@ -1,9 +1,9 @@
 @tool
 # hihi an icon <3
-@icon("res://src/hexasphere.svg")
+@icon("res://src/quadsphere.svg")
 
-## HexaSphere is a box mesh that can be subdivided and smoothed to create a sphere-like mesh. It extends the regular Box Mesh.
-class_name HexaSphere
+## QuadSphere is a box mesh that can be subdivided and smoothed to create a sphere-like mesh. It extends the regular Box Mesh.
+class_name QuadSphere
 
 # The ArrayMesh can hold multiple *surfaces* in an array.
 # A surface holds mesh data, such as vertices and such.
@@ -35,7 +35,7 @@ const CHUNK_NAMES := ["chunk_right", "chunk_left", "chunk_top", "chunk_bottom", 
 		surface_splitting = value
 		_queue_mesh_rebuild()
 
-@export_group("Hexasphere Debug")
+@export_group("QuadSphere Debug")
 ## Shows vertices on the mesh
 @export var debug_vertices: bool = false:
 	set(value):
@@ -57,7 +57,7 @@ var _rebuild_generation := 0
 var _surface_materials: Dictionary = {}
 
 
-func _init() -> void:
+func _ready() -> void:
 	_init_mesh()
 
 
@@ -139,7 +139,7 @@ func _init_mesh() -> void:
 	else:
 		# Blazing fast Single-surface mode using the pre-modified arrays
 		self.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		self.surface_set_name(0, "hexasphere")
+		self.surface_set_name(0, "quadsphere")
 
 	if debug_normals or debug_vertices:
 		_add_debug_lines_surface()

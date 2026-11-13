@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://f3khibthfli"
-path="res://.godot/imported/hexasphere.svg-661c263912403fd5e37b4813d0ba530c.ctex"
+uid="uid://c2x51jelmcngn"
+path="res://.godot/imported/planet_diagram.png-ef0e7f819c275f5c672f11b09e30e865.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://src/hexasphere.svg"
-dest_files=["res://.godot/imported/hexasphere.svg-661c263912403fd5e37b4813d0ba530c.ctex"]
+source_file="res://docs/embeds/planet_diagram.png"
+dest_files=["res://.godot/imported/planet_diagram.png-ef0e7f819c275f5c672f11b09e30e865.ctex"]
 
 [params]
 
@@ -38,6 +38,3 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
-svg/scale=1.0
-editor/scale_with_editor_scale=false
-editor/convert_colors_with_editor_theme=false

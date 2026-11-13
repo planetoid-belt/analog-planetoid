@@ -3,7 +3,7 @@
 ## Surface Tool 
 The surface tool is similar to how OpenGL Immediate tool works. As someone who has never worked with OpenGL, this wasn't a particularly useful description, so here is my take on it instead: 
 
-taken from [hexasphere.gd](../src/hexasphere.gd): The surface tool is stateful. It builds meshes based on attributes which are configured before adding vertices to a mesh.
+taken from [quadsphere.gd](../src/quadsphere.gd): The surface tool is stateful. It builds meshes based on attributes which are configured before adding vertices to a mesh.
 
 Before beginning, we initialize the surface tool: `st := SurfaceTool.new()`. We then call `st.begin(Mesh.PRIMITIVE_TRIANGLES)` the `begin(...)` function specifies what type of mesh the surface tool is going produce. We can also use it to create simple lines too by passing `Mesh.PRIMITIVE_LINES`, which is super useful for debugging. Thereafter, we do the following to make a mesh:
 
@@ -14,11 +14,18 @@ Before beginning, we initialize the surface tool: `st := SurfaceTool.new()`. We 
 5. 	Surfaces can be named with `surface_set_name(idx: int, string: title)`.
 
 
-## Planet generation 
+## Planet generation & modification
+A Planet holds a ChunkManager, which in turn holds Chunks. Chunks are AnimatableBody3D, which is like a StaticBody, except that it can affect other physics bodies when it's updated. Each Chunk has a MeshInstance3D, and a CollisionShape3D, which define its appearance & shape. Whenever a Chunk updates its mesh, it should rebuild the CollisionShape as well.
 
-### Hexasphere
-A hexasphere is useful because it suffers far less from edge-clustering at certain vertices. It also lets us divide the sphere into 6 equally sized regions. 
+> [!TIP] 
+> Because we are using CollisionShape3D, You can use AreaCast3D and RayCast3D to detect individual chunks with ease! It also gives you access to loads of other useful things, such as plane normals and tangents. 
+
+![](embeds/planet_diagram.png)
+### Quadsphere
+A quadsphere is useful because it suffers far less from edge-clustering at the top & bottom vertices. Size Variance of Faces is also much smaller than on a traditional UV sphere. It also lets us divide the sphere into 6 equally sized regions with ease :) 
 
 ### Chunking 
-Each chunk of the hexasphere corresponds to a surface. This is how we do chunking. Each chunk from there-on can be subdivided into chunks (if need-be)
+Each surface of the quadsphere can be split up to into separate sets of `{MeshInstance3D, CollisionShape3D}`. An individual chunk can have its terrain be directly modified through scripts without needing to reload the entire QuadSphere Resource. It comes with the disadvantage of convoluted code (especially since I went out of my way to make it work in-editor). 
 
+> [!TIP]
+> modify individual chunk meshes via `chunk.gd`. Modify the entire hexapshere via `chunk_manager.gd`.
