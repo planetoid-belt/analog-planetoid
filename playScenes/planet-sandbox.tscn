@@ -2,14 +2,19 @@
 
 [ext_resource type="PackedScene" uid="uid://cpsqb1yxoob1w" path="res://packedScenes/Planet.tscn" id="1_6o1xg"]
 
+[sub_resource type="Environment" id="Environment_m6kmv"]
+background_mode = 1
+background_color = Color(0, 0, 0.13333334, 1)
+
 [node name="PlanetSandbox" type="Node3D" unique_id=750419272]
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=784496215]
-transform = Transform3D(1, 0, 0, 0, 0.5019895, 0.8648737, 0, -0.8648737, 0.5019895, 0, 52.693604, -66.12277)
+transform = Transform3D(1, 0, 0, 0, 0.8660254, 0.5, 0, -0.5, 0.8660254, 0, 1.385747, 2.0569036)
+light_energy = 1.736
+light_indirect_energy = 1.255
+shadow_blur = 1.08
 
-[node name="Camera3D" type="Camera3D" parent="." unique_id=1473307616]
-transform = Transform3D(1, 0, 0, 0, 0.9506317, 0.31032148, 0, -0.31032148, 0.9506317, 0, 0.46756566, 1.3076856)
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=123498109]
+environment = SubResource("Environment_m6kmv")
 
 [node name="Planet" parent="." unique_id=1527083041 instance=ExtResource("1_6o1xg")]
-transform = Transform3D(-0.5872871, -0.1863254, -0.7880978, 0.43305063, 0.75000125, -0.5000428, 0.6842387, -0.63488346, -0.35977772, 0, 0, 0)
-rotation_speed = 0.5
