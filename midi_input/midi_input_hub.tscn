@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://xue6pwawikni"]
+
+[ext_resource type="Script" uid="uid://dgf02s7w0u7ww" path="res://midi_input/midi_input_hub.gd" id="1_cqn3l"]
+
+[node name="MidiInputHub" type="Node" unique_id=581690409]
+script = ExtResource("1_cqn3l")
