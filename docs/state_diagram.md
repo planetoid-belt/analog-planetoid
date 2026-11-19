@@ -4,7 +4,7 @@
   - -> G: Hosts decide to show the galaxy map.
 - (P) Prepare:  A count-in, at least. Perhaps some tutorial or more fancy build-up.
   - -> C: After some time creation begins automatically.
-  - -> A: The experiecnce can be canceled by the hosts.
+  - -> A: The experiecnce can be canceled/paused/restarted by the hosts.
 - (C) Create:   Users are creating a planetoid. Alternates between playing and listening.
   - -> F: When planetoid creation has completed it will be displayed. (Planetoid is saved?)
   - -> A: The experiecnce can be canceled by the hosts.

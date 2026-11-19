@@ -1,0 +1,67 @@
+[gd_scene format=3 uid="uid://c3l5ehu1g0ni"]
+
+[ext_resource type="Script" uid="uid://dud6d3vs0pwi7" path="res://src/midiSandbox/camera_3d.gd" id="1_i7lcw"]
+[ext_resource type="Script" uid="uid://vewe821stc0u" path="res://src/midiSandbox/midi_mesh.gd" id="2_6kfrc"]
+[ext_resource type="PackedScene" uid="uid://c3mnhiqtxyl8n" path="res://midi_input/midi_controller.tscn" id="3_2px8h"]
+[ext_resource type="PackedScene" uid="uid://xue6pwawikni" path="res://midi_input/midi_input_hub.tscn" id="4_a1ijm"]
+[ext_resource type="Texture2D" uid="uid://cu3m5eo88xxto" path="res://assets/2d/2k_stars_milky_way.jpg" id="5_lw676"]
+[ext_resource type="PackedScene" uid="uid://cpmssvm30lpbw" path="res://packedScenes/create.tscn" id="6_m1oeu"]
+[ext_resource type="PackedScene" uid="uid://dhs3wdve1glgy" path="res://packedScenes/attract_screen.tscn" id="7_sde7c"]
+[ext_resource type="PackedScene" uid="uid://d5o208r0b6rc" path="res://packedScenes/finished.tscn" id="8_x4ue0"]
+[ext_resource type="PackedScene" uid="uid://dqhjwxtgvhkup" path="res://packedScenes/galaxy.tscn" id="9_mva05"]
+[ext_resource type="PackedScene" uid="uid://byhvldnhjj6jc" path="res://packedScenes/prepare.tscn" id="10_e5pso"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_u3m7n"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_sif7b"]
+material = SubResource("StandardMaterial3D_u3m7n")
+
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_843oe"]
+panorama = ExtResource("5_lw676")
+energy_multiplier = 2.0
+
+[sub_resource type="Sky" id="Sky_ib2ti"]
+sky_material = SubResource("PanoramaSkyMaterial_843oe")
+
+[sub_resource type="Environment" id="Environment_vxcft"]
+background_mode = 2
+sky = SubResource("Sky_ib2ti")
+ambient_light_source = 3
+ambient_light_color = Color(1, 1, 1, 1)
+ambient_light_energy = 2.0
+reflected_light_source = 2
+
+[node name="Main" type="Node3D" unique_id=315966380]
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1225955242]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2)
+current = true
+script = ExtResource("1_i7lcw")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=634107462]
+mesh = SubResource("SphereMesh_sif7b")
+script = ExtResource("2_6kfrc")
+
+[node name="MidiController" parent="." unique_id=212663071 instance=ExtResource("3_2px8h")]
+print_midi = true
+input_hub_path = NodePath("../MidiInputHub")
+
+[node name="MidiInputHub" parent="." unique_id=581690409 instance=ExtResource("4_a1ijm")]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1418334625]
+environment = SubResource("Environment_vxcft")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1153018930]
+transform = Transform3D(0.70710677, 0, -0.70710677, 0, 1, 0, 0.70710677, 0, 0.70710677, 0, 0, 0)
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=365932537]
+
+[node name="Create" parent="CanvasLayer" unique_id=2121993815 instance=ExtResource("6_m1oeu")]
+
+[node name="AttractScreen" parent="CanvasLayer" unique_id=1037162093 instance=ExtResource("7_sde7c")]
+
+[node name="Finished" parent="CanvasLayer" unique_id=2122425798 instance=ExtResource("8_x4ue0")]
+
+[node name="Galaxy" parent="CanvasLayer" unique_id=1212838746 instance=ExtResource("9_mva05")]
+
+[node name="Prepare" parent="CanvasLayer" unique_id=253531027 instance=ExtResource("10_e5pso")]
