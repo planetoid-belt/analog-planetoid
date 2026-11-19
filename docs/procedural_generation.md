@@ -8,8 +8,25 @@ A quadsphere is useful because it suffers far less from edge-clustering at the t
 ### Chunking 
 Each surface of the quadsphere can be split up into 6 separate sets of `{MeshInstance3D, CollisionShape3D}`. An advantage of chunks is that we can modify individual parts of the mesh without needing to rebuild it. 
 
+![](embeds/chunk-diagram.png)
+
+There are two important Node classes to consider: the `Chunk` and the `ChunkManager`. 
+
+#### ChunkManager
+Contains an array of maps, which are 2d textures that define terrain features of the planet. Initially, the array of maps will only contain a map for height. 
+
+ChunkManager is the definitive source of truth for the planet's surface. It might be valuable to make an individual array for each chunk, where we store maps for each surface. This means that we have to account for edge detection. 
+
+#### Chunk
+A chunk is the contact point for edits. It needs to have the following functionality:
+1. map collision point to mesh point 
+2. map mesh point to UV coordinates
+3. update collision shape from mesh shape 
+
+terrain modifications are directly made to it. 
+
 > [!TIP]
-> modify individual chunk meshes via `chunk.gd`. Modify the entire hexapshere via `chunk_manager.gd`. I recommend using the [SurfaceTool](surfacetool.md) for mesh modifications[godot docs tutorial](https://docs.godotengine.org/en/latest/tutorials/3d/procedural_geometry/surfacetool.html). 
+> modify individual chunk meshes via `chunk.gd`. Modify the entire quadpshere via `chunk_manager.gd`. I recommend using the [SurfaceTool](surfacetool.md) for mesh modifications[godot docs tutorial](https://docs.godotengine.org/en/latest/tutorials/3d/procedural_geometry/surfacetool.html). 
 
 ## how do meshes work?
 We can read surface arrays of anything that has a shape in Godot. Surface arrays are arrays that store info about the surface (duh). This is used for both collision shapes, as well as visual instances of meshes. 
