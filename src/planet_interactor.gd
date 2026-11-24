@@ -55,6 +55,11 @@ func toggle_ray() -> void:
 		push_error("Cannot toggle RayCast3D: ray is not assigned.")
 		return
 
+	var x = randf_range(-0.3, 0.3)
+	var y = randf_range(-0.3, 0.3)
+
+	# Randomize position for debug, DELETE THIS
+	ray.target_position = ray.target_position + Vector3(x, y, 0)
 	ray.enabled = not ray.enabled
 	print("RayCast3D enabled: %s" % ray.enabled)
 

@@ -4,10 +4,16 @@
 ## This node divides up a quadsphere into 6 seperate mesh instances, which are appended to a mesh_chunks array.
 ## Each of these mesh_chunks can be edited individually via mesh_chunks[i].mesh. ordering in the array goes like this:
 	## +x, -x, +y, -y, +z, -z.
+	## Spliting them up into further 4 chunks, we can split things up EVEN FURTHER.
+	## Each configuration of x,y,z polarities leads to a specific chunk.
+	## So there are 6 faces, and these are then divided into chunks.
+	## The data structure will be nested, so we really only want the kd-tree visualized in the IDE.
+	## I am not actually sure if its correct to use it?
 class_name ChunkManager
 extends Node3D
 
-## the quadsphere mesh itself. This can be modified to
+## the quadsphere mesh itself. This can be modified from the chunk_manager, in which case it will
+## propagate updates to its chunks.
 @export var quadsphere: QuadSphere:
 	set(value):
 		if quadsphere != null and quadsphere.changed.is_connected(_rebuild_chunks):
