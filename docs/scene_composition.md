@@ -16,3 +16,16 @@ A planet's ChunkManager can be modified to make it larger, increase its vertex c
 > Because we are using CollisionShape3D, You can use AreaCast3D and RayCast3D to detect individual chunks with ease! It also gives you access to loads of other useful things, such as plane normals and tangents. 
 
 ![](embeds/planet_diagram.png)
+
+## Planetoid.tcsn (NEW!)
+A planetoid holds an **Array of Maps** (2d textures), which record local changes to height, vertex coloring, etc. 
+
+The planetoid has a **Terrain Manager** node, which has a bunch of **Terrain Chunks** in it. Terrain Manager is alone responsible for splitting itself up into pieces, and making global changes to terrain from Texture map edits. 
+
+Terrain chunks are responsible for local changes to their own terrain. Interpolated edits will have to be recursive, so keep that in mind. 
+
+### What counts as terrain?
+Terrain is anything related to  
+
+
+![](embeds/planetoid_diagram.png)
