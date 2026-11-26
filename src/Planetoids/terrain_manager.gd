@@ -18,7 +18,7 @@ extends Node3D
 
 const MAX_CHUNKING_FACTOR := 6
 
-#region exports
+#region Exports
 ## The quadsphere resource from which we build terrain. You can make direct edits
 ## to the quadsphere resource from here, or from the Planetoid node.
 @export var quadsphere: QuadSphere:
@@ -35,18 +35,18 @@ const MAX_CHUNKING_FACTOR := 6
 
 
 ## chunking factor decides how many times pieces Terrain Manager will split the quadsphere. [br]
-## [br]
-## 0 => 1 chunk (no chunking) [br]
-##
-## 1 => 6*4⁰ = 6 (each face of the cube is its own chunk) [br]
-##
-## 2 => 6*4¹ = 24 (each face of the cube is subdivided into 4 chunks) [br]
-##
-## 3 => 6*4² = 96 (etc...) [br]
-## [br]
-##
-## [b]NOTE: chunking factor cannot be greater than the quadsphere subdivision factor.
-## if you set it higher than the subdivision factor, it will quietly default to a safer value.
+	## [br]
+	## 0 => 1 chunk (no chunking) [br]
+	##
+	## 1 => 6*4⁰ = 6 (each face of the cube is its own chunk) [br]
+	##
+	## 2 => 6*4¹ = 24 (each face of the cube is subdivided into 4 chunks) [br]
+	##
+	## 3 => 6*4² = 96 (etc...) [br]
+	## [br]
+	##
+	## [b]NOTE: chunking factor cannot be greater than the quadsphere subdivision factor.
+	## if you set it higher than the subdivision factor, it will quietly default to a safer value.
 @export_range(0, MAX_CHUNKING_FACTOR, 1) var chunking_factor := 1:
 	set(value):
 		chunking_factor = clampi(value, 0, MAX_CHUNKING_FACTOR)
@@ -64,26 +64,29 @@ const MAX_CHUNKING_FACTOR := 6
 #endregion
 
 
+#region Signals & State
 signal chunks_rebuilt(chunk_count: int) ## emitted whenever any chunk is rebuilt. Also emits number of chunks rebuilt.
 signal terrain_changed(chunk: TerrainChunk) ## emitted when terrain of a chunk is rebuilt. will be emitted for each chunk.
 
 var _rebuilding := false
+#endregion
 
 
-#region Lifetime
-
-# called when the entire class is fully loaded in.
+#region Lifecycle & Events
+## Connects to [member quadsphere] signals and triggers initial chunk generation upon entering the tree.
 func _ready() -> void:
 	if quadsphere != null and not quadsphere.changed.is_connected(_on_quadsphere_changed):
 		quadsphere.changed.connect(_on_quadsphere_changed)
 	rebuild_chunks()
 
-# destructor (sorta). We wanna disconnect any signals that we've established listeners for.
+
+## Disconnects listeners from [member quadsphere] before leaving the scene tree.
 func _exit_tree() -> void:
 	if quadsphere != null and quadsphere.changed.is_connected(_on_quadsphere_changed):
 		quadsphere.changed.disconnect(_on_quadsphere_changed)
 
-# helper function for creating interactable node hierarchies in the editor GUI.
+
+## Sets the edited scene root as owner for the node in the editor.
 func _set_editor_owner(node: Node) -> void:
 	if not Engine.is_editor_hint() or not is_inside_tree():
 		return
@@ -95,25 +98,19 @@ func _set_editor_owner(node: Node) -> void:
 		node.owner = edited_scene_root
 
 
-#endregion
-
-
-#region Signal listeners
-# This signal is emitted in quadsphere whenever it receives a change.
+## Rebuilds all chunks when the underlying QuadSphere resource changes.
 func _on_quadsphere_changed() -> void:
 	rebuild_chunks()
 
-# this listener routes signals from its child chunks to related places, such as terrain_gizmo.gd.
+
+## Relays mesh alteration notifications from child chunks by emitting [signal terrain_changed].
 func _on_chunk_mesh_changed(chunk: TerrainChunk) -> void:
 	terrain_changed.emit(chunk)
-
-
 #endregion
 
 
-#region Chunking
-#region Rebuild flow
-## Selects the full-mesh or subdivided-face rebuild path.
+#region Chunk Generation
+## Reconstructs all terrain chunks based on current chunking factor and QuadSphere geometry.
 func rebuild_chunks() -> void:
 	if _rebuilding:
 		return
@@ -140,32 +137,16 @@ func rebuild_chunks() -> void:
 	chunks_rebuilt.emit(chunk_count)
 
 
-#endregion
-
-
-#region Face subdivision
-## Splits source faces into UV tiles and creates a mesh for each tile.
-## this is the big bomba function. we can likely reduce it down by a bunch.
+## Splits QuadSphere surfaces into face-aligned UV grid chunks and returns the total number created.
 func _create_face_chunks(factor: int) -> int:
 	var tiles_per_axis := 1 << (factor - 1)
-	var groups: Array[Dictionary] = []
-	var face_triangles: Array = []
-	var face_uv_min: Array[Vector2] = []
-	var face_uv_max: Array[Vector2] = []
+	var chunks: Array[ChunkData] = []
+	chunks.resize(6 * tiles_per_axis * tiles_per_axis)
 	for face_index in range(6):
-		face_triangles.append([])
-		face_uv_min.append(Vector2(INF, INF))
-		face_uv_max.append(Vector2(-INF, -INF))
 		for tile_y in range(tiles_per_axis):
 			for tile_x in range(tiles_per_axis):
-				groups.append({
-					"face": face_index,
-					"x": tile_x,
-					"y": tile_y,
-					"vertices": PackedVector3Array(),
-					"normals": PackedVector3Array(),
-					"uvs": PackedVector2Array(),
-				})
+				var idx := face_index * tiles_per_axis * tiles_per_axis + tile_y * tiles_per_axis + tile_x
+				chunks[idx] = ChunkData.new(face_index, tile_x, tile_y)
 
 	for surface_index in range(quadsphere.get_surface_count()):
 		if quadsphere.surface_get_primitive_type(surface_index) != Mesh.PRIMITIVE_TRIANGLES:
@@ -177,85 +158,79 @@ func _create_face_chunks(factor: int) -> int:
 		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
 		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-		var element_count := indices.size() if not indices.is_empty() else vertices.size()
+		var has_indices := not indices.is_empty()
+		var element_count := indices.size() if has_indices else vertices.size()
 		var named_face := QuadSphere.CHUNK_NAMES.find(quadsphere.surface_get_name(surface_index))
 
-		for offset in range(0, element_count - 2, 3):
-			var i0 := indices[offset] if not indices.is_empty() else offset
-			var i1 := indices[offset + 1] if not indices.is_empty() else offset + 1
-			var i2 := indices[offset + 2] if not indices.is_empty() else offset + 2
+		var offset := 0
+		while offset < element_count - 2:
+			var i0 := indices[offset] if has_indices else offset
+			var i1 := indices[offset + 1] if has_indices else offset + 1
+			var i2 := indices[offset + 2] if has_indices else offset + 2
 			var v0 := vertices[i0]
 			var v1 := vertices[i1]
 			var v2 := vertices[i2]
-			var face_index := named_face if named_face >= 0 else _get_face_index(v0, v1, v2)
-			var triangle: Array[Dictionary] = [
-				_make_vertex_data(v0, normals, uvs, i0, vertices.size(), face_index),
-				_make_vertex_data(v1, normals, uvs, i1, vertices.size(), face_index),
-				_make_vertex_data(v2, normals, uvs, i2, vertices.size(), face_index),
-			]
-			for point in triangle:
-				var uv: Vector2 = point["uv"]
-				face_uv_min[face_index] = Vector2(
-					minf(face_uv_min[face_index].x, uv.x),
-					minf(face_uv_min[face_index].y, uv.y)
-				)
-				face_uv_max[face_index] = Vector2(
-					maxf(face_uv_max[face_index].x, uv.x),
-					maxf(face_uv_max[face_index].y, uv.y)
-				)
-			face_triangles[face_index].append(triangle)
+			var face_a := named_face if named_face >= 0 else _get_face_index(v0, v1, v2)
 
-	# Assign every source triangle to one tile by its UV-space center.
+			var is_quad := false
+			var i3 := 0
+			var i4 := 0
+			var i5 := 0
+			var v3 := Vector3.ZERO
+			var v4 := Vector3.ZERO
+			var v5 := Vector3.ZERO
+
+			if offset + 5 < element_count:
+				i3 = indices[offset + 3] if has_indices else offset + 3
+				i4 = indices[offset + 4] if has_indices else offset + 4
+				i5 = indices[offset + 5] if has_indices else offset + 5
+				var shared := 0
+				if i3 == i0 or i3 == i1 or i3 == i2: shared += 1
+				if i4 == i0 or i4 == i1 or i4 == i2: shared += 1
+				if i5 == i0 or i5 == i1 or i5 == i2: shared += 1
+				if shared >= 2:
+					v3 = vertices[i3]
+					v4 = vertices[i4]
+					v5 = vertices[i5]
+					var face_b := named_face if named_face >= 0 else _get_face_index(v3, v4, v5)
+					if face_a == face_b:
+						is_quad = true
+
+			var uv0 := _get_face_uv(v0, face_a)
+			var uv1 := _get_face_uv(v1, face_a)
+			var uv2 := _get_face_uv(v2, face_a)
+
+			var center: Vector2
+			if is_quad:
+				var uv3 := _get_face_uv(v3, face_a)
+				var uv4 := _get_face_uv(v4, face_a)
+				var uv5 := _get_face_uv(v5, face_a)
+				center = (uv0 + uv1 + uv2 + uv3 + uv4 + uv5) / 6.0
+			else:
+				center = (uv0 + uv1 + uv2) / 3.0
+
+			var tile_x := clampi(int(floor(center.x * tiles_per_axis)), 0, tiles_per_axis - 1)
+			var tile_y := clampi(int(floor(center.y * tiles_per_axis)), 0, tiles_per_axis - 1)
+			var chunk_idx := face_a * tiles_per_axis * tiles_per_axis + tile_y * tiles_per_axis + tile_x
+			var target_chunk: ChunkData = chunks[chunk_idx]
+
+			target_chunk.add_triangle(surface_index, i0, i1, i2, vertices, normals, uvs, face_a, self)
+			if is_quad:
+				target_chunk.add_triangle(surface_index, i3, i4, i5, vertices, normals, uvs, face_a, self)
+				offset += 6
+			else:
+				offset += 3
+
 	var created_count := 0
-	for face_index in range(6):
-		if face_triangles[face_index].is_empty():
+	for chunk in chunks:
+		if chunk.vertices.is_empty():
 			continue
-		var uv_min: Vector2 = face_uv_min[face_index]
-		var uv_span: Vector2 = face_uv_max[face_index] - uv_min
-		for triangle in face_triangles[face_index]:
-			var triangle_center := Vector2.ZERO
-			for point_index in range(triangle.size()):
-				var point: Dictionary = triangle[point_index]
-				var uv: Vector2 = point["uv"]
-				var fallback_uv := _get_face_uv(point["vertex"], face_index)
-				if not is_zero_approx(uv_span.x):
-					fallback_uv.x = (uv.x - uv_min.x) / uv_span.x
-				if not is_zero_approx(uv_span.y):
-					fallback_uv.y = (uv.y - uv_min.y) / uv_span.y
-				point["uv"] = fallback_uv.clamp(Vector2.ZERO, Vector2.ONE)
-				triangle[point_index] = point
-				triangle_center += fallback_uv
-
-			triangle_center /= float(triangle.size())
-			var tile_x := clampi(int(floor(triangle_center.x * tiles_per_axis)), 0, tiles_per_axis - 1)
-			var tile_y := clampi(int(floor(triangle_center.y * tiles_per_axis)), 0, tiles_per_axis - 1)
-			var group_index := face_index * tiles_per_axis * tiles_per_axis + tile_y * tiles_per_axis + tile_x
-			var group: Dictionary = groups[group_index]
-			var group_vertices: PackedVector3Array = group["vertices"]
-			var group_normals: PackedVector3Array = group["normals"]
-			var group_uvs: PackedVector2Array = group["uvs"]
-			for point in triangle:
-				group_vertices.append(point["vertex"])
-				group_normals.append(point["normal"])
-				group_uvs.append(point["uv"])
-			group["vertices"] = group_vertices
-			group["normals"] = group_normals
-			group["uvs"] = group_uvs
-			groups[group_index] = group
-
-	for group in groups:
-		var vertices: PackedVector3Array = group["vertices"]
-		if vertices.is_empty():
-			continue
-		var mesh := _create_chunk_mesh(vertices, group["normals"], group["uvs"])
+		var mesh := _create_chunk_mesh(chunk)
 		if mesh == null:
 			continue
-		var face_index: int = group["face"]
-		var tile_x: int = group["x"]
-		var tile_y: int = group["y"]
-		var surface_index := _get_source_surface_for_face(face_index)
+		var surface_index := _get_source_surface_for_face(chunk.face)
 		mesh.surface_set_material(0, quadsphere.surface_get_material(surface_index))
-		_create_chunk("Face%d_%d_%d" % [face_index, tile_x, tile_y], mesh)
+		_create_chunk("Face%d_%d_%d" % [chunk.face, chunk.x, chunk.y], mesh)
 		created_count += 1
 
 	var expected_count := 6 * tiles_per_axis * tiles_per_axis
@@ -267,78 +242,26 @@ func _create_face_chunks(factor: int) -> int:
 	return created_count
 
 
-#endregion
+## Constructs an indexed [ArrayMesh] with generated tangents from pre-indexed chunk buffers.
+func _create_chunk_mesh(chunk: ChunkData) -> ArrayMesh:
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = chunk.vertices
+	arrays[Mesh.ARRAY_NORMAL] = chunk.normals
+	arrays[Mesh.ARRAY_TEX_UV] = chunk.uvs
+	arrays[Mesh.ARRAY_INDEX] = chunk.indices
+
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	if not chunk.uvs.is_empty():
+		var surface_tool := SurfaceTool.new()
+		surface_tool.create_from(mesh, 0)
+		surface_tool.generate_tangents()
+		return surface_tool.commit()
+	return mesh
 
 
-#region Face and UV mapping
-func _make_vertex_data(
-	vertex: Vector3,
-	normals: PackedVector3Array,
-	uvs: PackedVector2Array,
-	vertex_index: int,
-	vertex_count: int,
-	face_index: int
-) -> Dictionary:
-	var normal := normals[vertex_index] if normals.size() == vertex_count else vertex.normalized()
-	var uv := uvs[vertex_index] if uvs.size() == vertex_count else _get_face_uv(vertex, face_index)
-	return {"vertex": vertex, "normal": normal, "uv": uv}
-
-
-func _get_face_uv(vertex: Vector3, face_index: int) -> Vector2:
-	if is_zero_approx(quadsphere.uniform_size):
-		return Vector2(0.5, 0.5)
-	var point := vertex / quadsphere.uniform_size + Vector3.ONE * 0.5
-	match face_index:
-		0, 1:
-			return Vector2(point.z, point.y)
-		2, 3:
-			return Vector2(point.x, point.z)
-		_:
-			return Vector2(point.x, point.y)
-
-
-func _get_source_surface_for_face(face_index: int) -> int:
-	if quadsphere.get_surface_count() == 1:
-		return 0
-	var face_name: String = QuadSphere.CHUNK_NAMES[face_index]
-	for surface_index in range(quadsphere.get_surface_count()):
-		if quadsphere.surface_get_name(surface_index) == face_name:
-			return surface_index
-	return mini(face_index, quadsphere.get_surface_count() - 1)
-
-
-func _get_face_index(v0: Vector3, v1: Vector3, v2: Vector3) -> int:
-	var center := (v0 + v1 + v2) / 3.0
-	var absolute_center := Vector3(absf(center.x), absf(center.y), absf(center.z))
-	if absolute_center.x >= absolute_center.y and absolute_center.x >= absolute_center.z:
-		return 0 if center.x >= 0.0 else 1
-	if absolute_center.y >= absolute_center.z:
-		return 2 if center.y >= 0.0 else 3
-	return 4 if center.z >= 0.0 else 5
-
-
-#endregion
-
-
-#region Mesh assembly
-## Builds the ArrayMesh surface from the clipped triangle vertices.
-func _create_chunk_mesh(vertices: PackedVector3Array, normals: PackedVector3Array, uvs: PackedVector2Array) -> ArrayMesh:
-	var surface_tool := SurfaceTool.new()
-	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for vertex_index in range(vertices.size()):
-		surface_tool.set_normal(normals[vertex_index])
-		surface_tool.set_uv(uvs[vertex_index])
-		surface_tool.add_vertex(vertices[vertex_index])
-	surface_tool.index()
-	surface_tool.generate_tangents()
-	return surface_tool.commit()
-
-
-#endregion
-
-
-#region Chunk lifecycle
-## Instantiates and removes generated TerrainChunk nodes.
+## Instantiates, configures, and attaches a new [TerrainChunk] child node.
 func _create_chunk(chunk_name: String, mesh: ArrayMesh) -> void:
 	var chunk := TerrainChunk.new()
 	chunk.name = chunk_name
@@ -350,6 +273,7 @@ func _create_chunk(chunk_name: String, mesh: ArrayMesh) -> void:
 		chunk.mesh_changed.connect(_on_chunk_mesh_changed)
 
 
+## Destroys and removes all previously generated [TerrainChunk] child nodes.
 func _clear_generated_chunks() -> void:
 	for child in get_children():
 		if child is TerrainChunk and child.has_meta(&"generated_by_terrain_manager"):
@@ -357,13 +281,121 @@ func _clear_generated_chunks() -> void:
 			child.queue_free()
 
 
+## Holds pre-indexed geometry buffers for a single generated chunk.
+class ChunkData:
+	extends RefCounted
+
+	var face: int
+	var x: int
+	var y: int
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	var vertex_map: Dictionary = {}
+
+	## Initializes a new chunk buffer for a specific cube face and tile coordinate.
+	func _init(p_face: int, p_x: int, p_y: int) -> void:
+		face = p_face
+		x = p_x
+		y = p_y
+
+	## Appends an indexed triangle to the chunk's geometry buffer, resolving deduplicated vertices.
+	func add_triangle(
+		surface_idx: int,
+		i0: int, i1: int, i2: int,
+		src_verts: PackedVector3Array,
+		src_norms: PackedVector3Array,
+		src_uvs: PackedVector2Array,
+		face_idx: int,
+		manager: TerrainManager
+	) -> void:
+		indices.append(_resolve_vertex(surface_idx, i0, src_verts, src_norms, src_uvs, face_idx, manager))
+		indices.append(_resolve_vertex(surface_idx, i1, src_verts, src_norms, src_uvs, face_idx, manager))
+		indices.append(_resolve_vertex(surface_idx, i2, src_verts, src_norms, src_uvs, face_idx, manager))
+
+	## Resolves a source vertex to a deduplicated local chunk vertex index.
+	func _resolve_vertex(
+		surface_idx: int,
+		idx: int,
+		src_verts: PackedVector3Array,
+		src_norms: PackedVector3Array,
+		src_uvs: PackedVector2Array,
+		face_idx: int,
+		manager: TerrainManager
+	) -> int:
+		var key := (surface_idx << 32) | idx
+		var local_idx: int = vertex_map.get(key, -1)
+		if local_idx != -1:
+			return local_idx
+		local_idx = vertices.size()
+		vertex_map[key] = local_idx
+		var pos := src_verts[idx]
+		var norm := src_norms[idx] if src_norms.size() == src_verts.size() else pos.normalized()
+		var uv := src_uvs[idx] if src_uvs.size() == src_verts.size() else manager._get_face_uv(pos, face_idx)
+		vertices.append(pos)
+		normals.append(norm)
+		uvs.append(uv)
+		return local_idx
+
+
+## Projects a 3D vertex onto the normalized [0, 1] UV plane of a given cube face.
+func _get_face_uv(vertex: Vector3, face_index: int) -> Vector2:
+	var u := 0.5
+	var v := 0.5
+	match face_index:
+		0: # Right (+X)
+			if not is_zero_approx(vertex.x):
+				u = 0.5 - 0.5 * (vertex.z / absf(vertex.x))
+				v = 0.5 + 0.5 * (vertex.y / absf(vertex.x))
+		1: # Left (-X)
+			if not is_zero_approx(vertex.x):
+				u = 0.5 + 0.5 * (vertex.z / absf(vertex.x))
+				v = 0.5 + 0.5 * (vertex.y / absf(vertex.x))
+		2: # Top (+Y)
+			if not is_zero_approx(vertex.y):
+				u = 0.5 + 0.5 * (vertex.x / absf(vertex.y))
+				v = 0.5 - 0.5 * (vertex.z / absf(vertex.y))
+		3: # Bottom (-Y)
+			if not is_zero_approx(vertex.y):
+				u = 0.5 + 0.5 * (vertex.x / absf(vertex.y))
+				v = 0.5 + 0.5 * (vertex.z / absf(vertex.y))
+		4: # Back (+Z)
+			if not is_zero_approx(vertex.z):
+				u = 0.5 + 0.5 * (vertex.x / absf(vertex.z))
+				v = 0.5 + 0.5 * (vertex.y / absf(vertex.z))
+		5: # Front (-Z)
+			if not is_zero_approx(vertex.z):
+				u = 0.5 - 0.5 * (vertex.x / absf(vertex.z))
+				v = 0.5 + 0.5 * (vertex.y / absf(vertex.z))
+	return Vector2(clampf(u, 0.0, 1.0), clampf(v, 0.0, 1.0))
+
+
+## Finds the matching source mesh surface index on [member quadsphere] for a given cube face.
+func _get_source_surface_for_face(face_index: int) -> int:
+	if quadsphere.get_surface_count() == 1:
+		return 0
+	var face_name: String = QuadSphere.CHUNK_NAMES[face_index]
+	for surface_index in range(quadsphere.get_surface_count()):
+		if quadsphere.surface_get_name(surface_index) == face_name:
+			return surface_index
+	return mini(face_index, quadsphere.get_surface_count() - 1)
+
+
+## Determines which of the six cube faces (0-5) a triangle belongs to based on its center position.
+func _get_face_index(v0: Vector3, v1: Vector3, v2: Vector3) -> int:
+	var center := (v0 + v1 + v2) / 3.0
+	var absolute_center := Vector3(absf(center.x), absf(center.y), absf(center.z))
+	if absolute_center.x >= absolute_center.y and absolute_center.x >= absolute_center.z:
+		return 0 if center.x >= 0.0 else 1
+	if absolute_center.y >= absolute_center.z:
+		return 2 if center.y >= 0.0 else 3
+	return 4 if center.z >= 0.0 else 5
 #endregion
 
 
-#endregion
-
-
-#region Misc/utility
+#region Terrain Operations
+## Retrieves all active [TerrainChunk] children generated by this manager.
 func get_chunks() -> Array[TerrainChunk]:
 	var chunks: Array[TerrainChunk] = []
 	for child in get_children():
@@ -372,6 +404,7 @@ func get_chunks() -> Array[TerrainChunk]:
 	return chunks
 
 
+## Applies a spherical sculpt brush to terrain chunks, returning the number of modified chunks.
 func brush_deform(local_position: Vector3, strength: float, radius: float, affected_chunks: Array[TerrainChunk] = []) -> int:
 	if radius <= 0.0:
 		return 0
@@ -382,6 +415,4 @@ func brush_deform(local_position: Vector3, strength: float, radius: float, affec
 		if is_instance_valid(chunk) and chunk.brush_deform(local_position, strength, radius):
 			changed_count += 1
 	return changed_count
-
-
 #endregion

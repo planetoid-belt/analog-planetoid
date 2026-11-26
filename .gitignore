@@ -25,3 +25,4 @@ mono_crash.*.json
 # *.pck
 
 .vscode/
+skills/system/run-workflow/
