@@ -79,7 +79,6 @@ func _ready() -> void:
 		quadsphere.changed.connect(_on_quadsphere_changed)
 	rebuild_chunks()
 
-
 ## Disconnects listeners from [member quadsphere] before leaving the scene tree.
 func _exit_tree() -> void:
 	if quadsphere != null and quadsphere.changed.is_connected(_on_quadsphere_changed):
@@ -341,35 +340,7 @@ class ChunkData:
 
 ## Projects a 3D vertex onto the normalized [0, 1] UV plane of a given cube face.
 func _get_face_uv(vertex: Vector3, face_index: int) -> Vector2:
-	var u := 0.5
-	var v := 0.5
-	match face_index:
-		0: # Right (+X)
-			if not is_zero_approx(vertex.x):
-				u = 0.5 - 0.5 * (vertex.z / absf(vertex.x))
-				v = 0.5 + 0.5 * (vertex.y / absf(vertex.x))
-		1: # Left (-X)
-			if not is_zero_approx(vertex.x):
-				u = 0.5 + 0.5 * (vertex.z / absf(vertex.x))
-				v = 0.5 + 0.5 * (vertex.y / absf(vertex.x))
-		2: # Top (+Y)
-			if not is_zero_approx(vertex.y):
-				u = 0.5 + 0.5 * (vertex.x / absf(vertex.y))
-				v = 0.5 - 0.5 * (vertex.z / absf(vertex.y))
-		3: # Bottom (-Y)
-			if not is_zero_approx(vertex.y):
-				u = 0.5 + 0.5 * (vertex.x / absf(vertex.y))
-				v = 0.5 + 0.5 * (vertex.z / absf(vertex.y))
-		4: # Back (+Z)
-			if not is_zero_approx(vertex.z):
-				u = 0.5 + 0.5 * (vertex.x / absf(vertex.z))
-				v = 0.5 + 0.5 * (vertex.y / absf(vertex.z))
-		5: # Front (-Z)
-			if not is_zero_approx(vertex.z):
-				u = 0.5 - 0.5 * (vertex.x / absf(vertex.z))
-				v = 0.5 + 0.5 * (vertex.y / absf(vertex.z))
-	return Vector2(clampf(u, 0.0, 1.0), clampf(v, 0.0, 1.0))
-
+	return Heightmap.dir_to_uv(vertex, face_index)
 
 ## Finds the matching source mesh surface index on [member quadsphere] for a given cube face.
 func _get_source_surface_for_face(face_index: int) -> int:
