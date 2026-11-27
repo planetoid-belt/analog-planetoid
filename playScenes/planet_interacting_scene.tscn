@@ -1,0 +1,35 @@
+[gd_scene format=3 uid="uid://bepu7o7cafenk"]
+
+[ext_resource type="Script" uid="uid://bslyg1caarug8" path="res://src/rotate.gd" id="1_myqia"]
+[ext_resource type="PackedScene" uid="uid://cj6y8yx3di16d" path="res://packedScenes/planetoid.tscn" id="3_4fgam"]
+[ext_resource type="Script" uid="uid://bimfi4n82bitt" path="res://src/planet_interactor.gd" id="4_myqia"]
+
+[sub_resource type="Environment" id="Environment_m6kmv"]
+background_mode = 1
+background_color = Color(0.10980392, 0.105882354, 0.20392157, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.29892525, 0.39768407, 0.64467096, 1)
+
+[node name="Node3D" type="Node3D" unique_id=481920352]
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1653953950]
+transform = Transform3D(0.6665996, 0, 0.7454161, 0, 1, 0, -0.7454161, 0, 0.6665996, 3.3351119, 0, 3.0550258)
+script = ExtResource("1_myqia")
+rotation_speed = 0.0
+rotation_margin_degrees = 45.0
+
+[node name="PlanetInteractor" type="Node3D" parent="Camera3D" unique_id=926724643 node_paths=PackedStringArray("ray")]
+script = ExtResource("4_myqia")
+ray = NodePath("RayCast3D")
+log_ray_hits_each_physics_tick = true
+
+[node name="RayCast3D" type="RayCast3D" parent="Camera3D/PlanetInteractor" unique_id=961435533]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0920071, 0)
+target_position = Vector3(0, 0, -3)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1373179947]
+
+[node name="planetoid" parent="." unique_id=1527083041 instance=ExtResource("3_4fgam")]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=93062789]
+environment = SubResource("Environment_m6kmv")

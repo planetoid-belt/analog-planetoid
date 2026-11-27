@@ -15,7 +15,7 @@ const CHUNK_NAMES := ["chunk_right", "chunk_left", "chunk_top", "chunk_bottom", 
 #region exports
 @export_category("Mesh Settings")
 ## Number of times the box will be smoothed.
-@export_range(0, 32, 1) var subdivisions = 4:
+@export_range(0, 32, 1) var subdivisions: int = 4:
 	set(value):
 		subdivisions = clampi(value, 0, 32)
 		_queue_mesh_rebuild()
@@ -57,7 +57,7 @@ var _rebuild_generation := 0
 var _surface_materials: Dictionary = {}
 
 
-func _ready() -> void:
+func _init() -> void:
 	_init_mesh()
 
 
