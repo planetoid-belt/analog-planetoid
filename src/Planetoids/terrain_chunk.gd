@@ -28,6 +28,10 @@ var mesh_instance: MeshInstance3D
 var collision_shape: CollisionShape3D
 var _collision_generation := 0
 var _collision_tasks: Dictionary = {}
+
+var _arrays: Array = []                       # mesh arrays, reused on every rebuild
+var _base_dirs := PackedVector3Array()        # direction of each vertex
+var _base_lengths := PackedFloat32Array()     # original distance from center of each vertex
 #endregion
 
 
@@ -98,9 +102,19 @@ func configure(mesh: ArrayMesh, enable_collision: bool = true) -> void:
 	_ensure_components()
 	collision_enabled = enable_collision
 	mesh_instance.mesh = mesh
+	_capture_base_shape(mesh)
 	_queue_collision_update()
 
-
+## Remembers the chunk's undeformed shape, so heights can be re-applied from scratch.
+func _capture_base_shape(mesh: ArrayMesh) -> void:
+	_arrays = mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = _arrays[Mesh.ARRAY_VERTEX]
+	_base_dirs.resize(verts.size())
+	_base_lengths.resize(verts.size())
+	for i in verts.size():
+		_base_dirs[i] = verts[i].normalized()   # which way the vertex points from the center
+		_base_lengths[i] = verts[i].length()    # how far from the center it originally was
+		
 ## Finds the index of the closest vertex to a local position across all surfaces, or -1 if empty.
 func get_nearest_vertex(local_position: Vector3) -> int:
 	_ensure_components()
@@ -126,6 +140,27 @@ func get_nearest_vertex(local_position: Vector3) -> int:
 
 
 #region Deformation
+## Rebuilds the mesh from the base shape plus heights sampled from the heightmap.
+func apply_heightmap(hm: Heightmap) -> void:
+	if _base_dirs.is_empty():
+		return # not configured yet
+
+	var verts := PackedVector3Array()
+	verts.resize(_base_dirs.size())
+	for i in _base_dirs.size():
+		verts[i] = _base_dirs[i] * (_base_lengths[i] + hm.sample(_base_dirs[i]))
+	_arrays[Mesh.ARRAY_VERTEX] = verts
+
+	# a new mesh each time
+	var old_mesh := mesh_instance.mesh as ArrayMesh
+	var new_mesh := ArrayMesh.new()
+	new_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _arrays)
+	_copy_surface_properties(old_mesh, new_mesh, 0)
+	mesh_instance.mesh = new_mesh
+
+	_queue_collision_update()
+	mesh_changed.emit(self)
+
 ## Radially deforms vertex positions within a spherical radius and queues a collision update.
 ## Returns true if any vertex was modified.
 func brush_deform(local_position: Vector3, strength: float, radius: float) -> bool:

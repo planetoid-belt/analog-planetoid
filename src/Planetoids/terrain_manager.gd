@@ -33,6 +33,8 @@ const MAX_CHUNKING_FACTOR := 6
 		if is_inside_tree():
 			rebuild_chunks()
 
+## Pixels per cube-face edge of the heightmap. Only used when the heightmap is created.
+@export var heightmap_resolution := 64
 
 ## chunking factor decides how many times pieces Terrain Manager will split the quadsphere. [br]
 	## [br]
@@ -69,6 +71,7 @@ signal chunks_rebuilt(chunk_count: int) ## emitted whenever any chunk is rebuilt
 signal terrain_changed(chunk: TerrainChunk) ## emitted when terrain of a chunk is rebuilt. will be emitted for each chunk.
 
 var _rebuilding := false
+var heightmap: Heightmap
 #endregion
 
 
@@ -77,8 +80,10 @@ var _rebuilding := false
 func _ready() -> void:
 	if quadsphere != null and not quadsphere.changed.is_connected(_on_quadsphere_changed):
 		quadsphere.changed.connect(_on_quadsphere_changed)
+	if heightmap == null:
+		heightmap = Heightmap.new(heightmap_resolution)
 	rebuild_chunks()
-
+		
 ## Disconnects listeners from [member quadsphere] before leaving the scene tree.
 func _exit_tree() -> void:
 	if quadsphere != null and quadsphere.changed.is_connected(_on_quadsphere_changed):
@@ -133,6 +138,7 @@ func rebuild_chunks() -> void:
 			chunk_count = _create_face_chunks(chunking_factor)
 
 	_rebuilding = false
+	apply_heightmap()
 	chunks_rebuilt.emit(chunk_count)
 
 
@@ -374,6 +380,12 @@ func get_chunks() -> Array[TerrainChunk]:
 			chunks.append(child)
 	return chunks
 
+## Re-applies the heightmap to every chunk.
+func apply_heightmap() -> void:
+	if heightmap == null:
+		return
+	for chunk in get_chunks():
+		chunk.apply_heightmap(heightmap)
 
 ## Applies a spherical sculpt brush to terrain chunks, returning the number of modified chunks.
 func brush_deform(local_position: Vector3, strength: float, radius: float, affected_chunks: Array[TerrainChunk] = []) -> int:
