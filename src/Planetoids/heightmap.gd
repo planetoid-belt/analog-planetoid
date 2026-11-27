@@ -86,3 +86,58 @@ func set_height(dir: Vector3, h: float) -> void:
 	var uv := dir_to_uv(dir, face)
 	var p := _uv_to_pixel(uv)
 	faces[face].set_pixel(p.x, p.y, Color(h, 0, 0))
+
+## Returns the height at a direction, smoothly blended between the 4 nearest pixels.
+func sample(dir: Vector3) -> float:
+	var face := dir_to_face(dir)
+	var uv := dir_to_uv(dir, face)
+	
+	var px := uv * (resolution - 1) # not rounded
+	var x0 := floori(px.x)
+	var y0 := floori(px.y)
+	var x1 := mini(x0 + 1, resolution - 1) #clamp to bounds
+	var y1 := mini(y0 + 1, resolution - 1) #clamp to bounds
+	
+	# bilinear interpolation
+	var tx := px.x - x0
+	var ty := px.y - y0
+	
+	var img := faces[face]
+	var h00 := img.get_pixel(x0, y0).r  # top-left
+	var h10 := img.get_pixel(x1, y0).r  # top-right   
+	var h01 := img.get_pixel(x0, y1).r  # bottom-left  
+	var h11 := img.get_pixel(x1, y1).r  # bottom-right 
+	
+	var top := lerpf(h00, h10, tx)
+	var bottom := lerpf(h01, h11, tx)
+	return lerpf(top, bottom, ty)
+
+## Where each face goes in the debug cross image, in face-sized cells.
+## Indexed by face number: +X, -X, +Y, -Y, +Z, -Z.
+const CROSS_CELLS: Array[Vector2i] = [
+	Vector2i(2, 1), # +X
+	Vector2i(0, 1), # -X
+	Vector2i(1, 0), # +Y
+	Vector2i(1, 2), # -Y
+	Vector2i(1, 1), # +Z
+	Vector2i(3, 1), # -Z
+]
+
+## Saves all 6 faces as one greyscale PNG laid out as an unfolded cube, 
+## ai generated
+func save_debug_png(path: String, min_h: float, max_h: float) -> void:
+	var out := Image.create_empty(4 * resolution, 3 * resolution, false, Image.FORMAT_L8)
+	out.fill(Color(0.1, 0.1, 0.1)) # dark background for the empty cells
+
+	for face in 6:
+		var offset := CROSS_CELLS[face] * resolution
+		for y in resolution:
+			for x in resolution:
+				var h := faces[face].get_pixel(x, y).r
+				var g := clampf(inverse_lerp(min_h, max_h, h), 0.0, 1.0)
+				# flip y: in our uv, v grows upward, but image rows grow downward
+				out.set_pixel(offset.x + x, offset.y + (resolution - 1 - y), Color(g, g, g))
+
+	var err := out.save_png(path)
+	if err != OK:
+		push_error("Heightmap: could not save debug png to %s (error %d)" % [path, err])
