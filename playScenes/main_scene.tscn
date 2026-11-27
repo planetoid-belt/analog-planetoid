@@ -1,3 +1,8 @@
 [gd_scene format=3 uid="uid://drtps3umv0ben"]
 
+[ext_resource type="Script" uid="uid://bn8514b7yibn6" path="res://playScenes/state_manager.gd" id="1_o3jjd"]
+
 [node name="Main" type="Node3D" unique_id=315966380]
+
+[node name="StateManager" type="Node" parent="." unique_id=581445502]
+script = ExtResource("1_o3jjd")

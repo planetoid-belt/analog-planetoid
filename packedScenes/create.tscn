@@ -1,0 +1,20 @@
+[gd_scene format=3 uid="uid://cpmssvm30lpbw"]
+
+[ext_resource type="Script" uid="uid://ddi2bemrs6usa" path="res://src/attract_scene.gd" id="1_bpu4i"]
+
+[node name="AttractScreen" type="Control" unique_id=2121993815]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_bpu4i")
+show_in = 2
+
+[node name="Label" type="Label" parent="." unique_id=400689629]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+text = "Create"
+horizontal_alignment = 1
