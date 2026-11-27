@@ -5,7 +5,7 @@ const NOTE_NAMES: Array[String] = [
 	"F#", "G", "G#", "A", "A#", "B",
 ]
 
-@onready var controller: MidiController = $MidiController
+@onready var controller: MidiController = $MidiInputHub/MidiController
 @onready var _mapping_rows_container: VBoxContainer = (
 	$UI/Mapper/Layout/MappingScroll/MappingRows
 )
@@ -70,26 +70,32 @@ func _refresh_mapping_list() -> void:
 	var targets := controller.get_pitch_targets()
 
 	for target_pitch in range(128):
-		var source_pitch := _source_for_target(targets, target_pitch)
+		var source_labels := PackedStringArray()
 
-		if source_pitch < 0:
+		for source_pitch in _sources_for_target(targets, target_pitch):
+			source_labels.append(
+				"%s (%d)" % [_note_name(source_pitch), source_pitch]
+			)
+
+		if source_labels.is_empty():
 			_mapping_source_labels[target_pitch].text = "MIDI map: --"
 		else:
 			_mapping_source_labels[target_pitch].text = (
-				"MIDI map: %s (%d)"
-				% [_note_name(source_pitch), source_pitch]
+				"MIDI map: %s" % ", ".join(source_labels)
 			)
 
 
-func _source_for_target(
+func _sources_for_target(
 	targets: PackedInt32Array,
 	target_pitch: int
-) -> int:
+) -> PackedInt32Array:
+	var sources := PackedInt32Array()
+
 	for source_pitch in range(128):
 		if targets[source_pitch] == target_pitch:
-			return source_pitch
+			sources.append(source_pitch)
 
-	return -1
+	return sources
 
 
 # Key capture
@@ -109,7 +115,8 @@ func _on_capture_note(event: InputEventMIDI) -> void:
 
 	var source_pitch := event.pitch
 	var target_pitch := _capture_target_pitch
-	_set_mapping_with_swap(source_pitch, target_pitch)
+	controller.set_pitch_mapping(source_pitch, target_pitch)
+	#_set_mapping_with_swap(source_pitch, target_pitch)
 
 	controller.end_capture()
 	_capture_target_pitch = -1
@@ -129,24 +136,24 @@ func _cancel_capture() -> void:
 
 # Mapping edits
 
-func _set_mapping_with_swap(source_pitch: int, target_pitch: int) -> void:
-	var targets := controller.get_pitch_targets()
-	var previous_source := _source_for_target(targets, target_pitch)
-	var previous_target := targets[source_pitch]
-
-	targets[source_pitch] = target_pitch
-
-	if previous_source >= 0 and previous_source != source_pitch:
-		targets[previous_source] = previous_target
-
-	controller.set_pitch_targets(targets)
+#func _set_mapping_with_swap(source_pitch: int, target_pitch: int) -> void:
+	#var targets := controller.get_pitch_targets()
+	#var previous_source := _sources_for_target(targets, target_pitch)
+	#var previous_target := targets[source_pitch]
+#
+	#targets[source_pitch] = target_pitch
+#
+	#if previous_source >= 0 and previous_source != source_pitch:
+		#targets[previous_source] = previous_target
+#
+	#controller.set_pitch_targets(targets)
 
 
 func _reset_row_mapping(target_pitch: int) -> void:
-	_set_mapping_with_swap(target_pitch, target_pitch)
+	controller.set_pitch_mapping(target_pitch, target_pitch)
 	_cancel_capture()
 	_status_label.text = (
-		"Reset %s to its default pitch."
+		"Reset input %s to its default pitch."
 		% _note_name(target_pitch)
 	)
 

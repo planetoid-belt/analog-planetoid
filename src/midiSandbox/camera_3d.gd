@@ -1,4 +1,3 @@
-@tool
 extends Camera3D
 
 @export var move_speed: float = 12.0
@@ -55,7 +54,7 @@ func _process(delta: float) -> void:
 
 @export var screenshot_size := Vector2i(2160, 3840)
 @export_file("*.png") var screenshot_path := "res://landscape.png"
-@export_tool_button("Screenshot") var button := take_screenshot
+#@export_tool_button("Screenshot") var button := take_screenshot
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
