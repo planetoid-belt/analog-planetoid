@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://c3mnhiqtxyl8n" path="res://midi_input/midi_controller.tscn" id="2_n5ol4"]
 [ext_resource type="PackedScene" uid="uid://xue6pwawikni" path="res://midi_input/midi_input_hub.tscn" id="3_sgkgg"]
 [ext_resource type="Texture2D" uid="uid://cu3m5eo88xxto" path="res://assets/2d/2k_stars_milky_way.jpg" id="4_n5ol4"]
+[ext_resource type="PackedScene" uid="uid://cuyd1qv0pn26e" path="res://addons/midi/MidiPlayer.tscn" id="5_midi_player"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_u3m7n"]
 
@@ -36,12 +37,32 @@ script = ExtResource("1_sgkgg")
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=634107462]
 mesh = SubResource("SphereMesh_sif7b")
 script = ExtResource("1_aq5ws")
-
-[node name="MidiController" parent="." unique_id=212663071 instance=ExtResource("2_n5ol4")]
-print_midi = true
-input_hub_path = NodePath("../MidiInputHub")
+midi_controller_path = NodePath("../MidiInputHub/LaunchPadMidiController")
 
 [node name="MidiInputHub" parent="." unique_id=581690409 instance=ExtResource("3_sgkgg")]
+editor_description = "Reads all MIDI input controllers and serializes them accordingly
+
+Receives MIDI inputs and propagates them down to respective controller children"
+
+[node name="MidiPlayer" parent="MidiInputHub" unique_id=132558901 instance=ExtResource("5_midi_player")]
+soundfont = "res://assets/audio/Jnsgm2.sf2"
+
+[node name="AlesisMidiController" parent="MidiInputHub" unique_id=212663071 instance=ExtResource("2_n5ol4")]
+editor_description = "MIDI controller controls sound mapping for a singular physical controller"
+midi_input_name = "VMini"
+midi_player_path = NodePath("../MidiPlayer")
+print_midi = true
+input_hub_path = NodePath("..")
+
+[node name="LaunchPadMidiController" parent="MidiInputHub" unique_id=1215465626 instance=ExtResource("2_n5ol4")]
+editor_description = "MIDI controller controls sound mapping for a singular physical controller"
+midi_input_name = "Launchpad MK2 4"
+mapping_path = "res://bottom row C.json"
+midi_player_path = NodePath("../MidiPlayer")
+output_channel = 1
+program_number = 14
+print_midi = true
+input_hub_path = NodePath("..")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1418334625]
 environment = SubResource("Environment_vxcft")

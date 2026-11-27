@@ -3,9 +3,13 @@
 [ext_resource type="Script" uid="uid://cxoe27jtb1fie" path="res://midi_input/midi_mapper.gd" id="1_aant8"]
 [ext_resource type="PackedScene" uid="uid://c3mnhiqtxyl8n" path="res://midi_input/midi_controller.tscn" id="2_aant8"]
 [ext_resource type="PackedScene" uid="uid://xue6pwawikni" path="res://midi_input/midi_input_hub.tscn" id="3_kvovb"]
+[ext_resource type="PackedScene" uid="uid://cuyd1qv0pn26e" path="res://addons/midi/MidiPlayer.tscn" id="4_midi_player"]
 
 [node name="MidiMapper" type="Node2D" unique_id=2125053809]
 script = ExtResource("1_aant8")
+
+[node name="MidiPlayer" parent="." instance=ExtResource("4_midi_player")]
+soundfont = "res://assets/audio/Jnsgm2.sf2"
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=110743425]
 
@@ -88,10 +92,12 @@ oversampling_override = 1.0
 access = 2
 filters = PackedStringArray("*.json ; MIDI mapping configuration")
 
-[node name="MidiController" parent="." unique_id=148925327 instance=ExtResource("2_aant8")]
-input_hub_path = NodePath("../MidiInputHub")
-
 [node name="MidiInputHub" parent="." unique_id=581690409 instance=ExtResource("3_kvovb")]
+
+[node name="MidiController" parent="MidiInputHub" unique_id=148925327 instance=ExtResource("2_aant8")]
+print_midi = true
+input_hub_path = NodePath("..")
+midi_player_path = NodePath("../../MidiPlayer")
 
 [connection signal="pressed" from="UI/Mapper/Layout/ProfileRow/ResetMapButton" to="." method="_on_reset_map_button_pressed"]
 [connection signal="pressed" from="UI/Mapper/Layout/FileRow/ImportButton" to="." method="_open_import_dialog"]
